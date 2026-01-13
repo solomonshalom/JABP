@@ -50,6 +50,16 @@ npm run tauri:build
 
 Output in `src-tauri/target/release/bundle/`
 
+### Install from Releases (macOS)
+
+Download the `.dmg` from [Releases](https://github.com/solomonshalom/JABP/releases), then run:
+
+```bash
+xattr -cr /Applications/JABP.app
+```
+
+This removes the quarantine flag since the app isn't code-signed.
+
 ## Controls
 
 | Action | Effect |
