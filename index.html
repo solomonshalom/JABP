@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JABP</title>
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="tint-layer"></div>
+    <div class="depth-layer"></div>
+    <div class="noise-layer"></div>
+
+    <main class="container">
+        <div class="cd-wrapper" id="cdWrapper">
+            <img
+                src="/cd-disc-1.png"
+                alt="CD"
+                class="cd-image"
+                id="cdDisc"
+            >
+        </div>
+
+        <div class="song-info">
+            <p class="song-title" id="songTitle"></p>
+            <span class="song-time" id="songTime"></span>
+        </div>
+
+        <audio id="audioPlayer"></audio>
+
+        <div class="button-group">
+            <button id="playBtn">
+                <svg class="icon" viewBox="0 0 24 24" id="playIcon">
+                    <polygon points="6 3 20 12 6 21 6 3" fill="currentColor"></polygon>
+                </svg>
+                <span id="playText">Play</span>
+            </button>
+
+            <div class="upload-wrapper">
+                <div class="upload-menu" id="uploadMenu">
+                    <button id="fileBtn">From Device</button>
+                    <button id="ytBtn">YouTube Link</button>
+                </div>
+                <button id="uploadBtn">Upload</button>
+            </div>
+        </div>
+
+        <p class="hint">Spin right to seek, left to rewind</p>
+
+        <input type="file" id="fileInput" accept="audio/*">
+    </main>
+
+    <div class="yt-overlay" id="ytOverlay">
+        <div class="yt-modal">
+            <input type="text" id="ytInput" placeholder="Paste video or playlist link...">
+            <div class="yt-modal-buttons">
+                <button id="ytCancel">Cancel</button>
+                <button id="ytLoad">Play</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="ytPlayerContainer"></div>
+
+    <script type="module" src="main.js"></script>
+</body>
+</html>
