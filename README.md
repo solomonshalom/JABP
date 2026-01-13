@@ -1,4 +1,5 @@
 # JABP - Just A Beautiful Player
+<img width="1472" height="748" alt="image" src="https://github.com/user-attachments/assets/ec9bb8d6-8e2a-43d4-8040-3c592c54edec" />
 
 A minimalist music player with a spinning CD interface. Drag the disc to scrub through tracks like vinyl.
 
