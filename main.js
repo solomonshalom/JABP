@@ -793,37 +793,55 @@ function endDrag() {
 }
 
 // ============================================
-// Click/Tap
+// Click/Tap (Manual double-tap detection for trackpad reliability)
 // ============================================
 let clickTimeout = null;
+let lastClickTime = 0;
+const DOUBLE_TAP_THRESHOLD = 400; // ms
 
-function handleClick() {
-    // Ignore if this was a drag
+function handleClick(e) {
+    // Ignore if this was a drag (moved more than threshold)
     if (hasDragged) {
         hasDragged = false;
         return;
     }
 
-    // Delay single-click action to allow double-click detection
-    // If double-click fires, it will cancel this timeout
-    clearTimeout(clickTimeout);
-    clickTimeout = setTimeout(() => {
-        if (state.hasSource) {
-            togglePlayPause();
-            console.log('Click - toggle play/pause');
-        }
-    }, 250);
+    const now = Date.now();
+    const timeSinceLastClick = now - lastClickTime;
+
+    if (timeSinceLastClick < DOUBLE_TAP_THRESHOLD && timeSinceLastClick > 50) {
+        // Double tap detected!
+        clearTimeout(clickTimeout);
+        lastClickTime = 0;
+
+        // Swap CD image (always works, even without source)
+        haptics.cdSwap();
+        state.currentCdImage = (state.currentCdImage + 1) % CD_IMAGES.length;
+        if (elements.cdDisc) elements.cdDisc.src = CD_IMAGES[state.currentCdImage];
+        console.log('Double tap - CD swap');
+    } else {
+        // First tap - wait to see if second tap comes
+        lastClickTime = now;
+        clearTimeout(clickTimeout);
+        clickTimeout = setTimeout(() => {
+            if (state.hasSource) {
+                togglePlayPause();
+                console.log('Single tap - toggle play/pause');
+            }
+            lastClickTime = 0;
+        }, DOUBLE_TAP_THRESHOLD);
+    }
 }
 
 function handleDoubleClick() {
-    // Cancel pending single-click action
+    // Backup for devices where native dblclick works
     clearTimeout(clickTimeout);
+    lastClickTime = 0;
 
-    // Double click = swap CD image (always works)
     haptics.cdSwap();
     state.currentCdImage = (state.currentCdImage + 1) % CD_IMAGES.length;
     if (elements.cdDisc) elements.cdDisc.src = CD_IMAGES[state.currentCdImage];
-    console.log('Double click - CD swap');
+    console.log('Native dblclick - CD swap');
 }
 
 // ============================================
@@ -854,8 +872,8 @@ if (elements.cdWrapper) {
 
 window.addEventListener('mousemove', (e) => {
     if (state.isDragging) {
-        // 12px threshold works better for Mac trackpads (Force Touch can register slight movement)
-        if (Math.abs(e.clientX - dragStartX) > 12 || Math.abs(e.clientY - dragStartY) > 12) hasDragged = true;
+        // 20px threshold - Mac trackpads need higher tolerance during double-taps
+        if (Math.abs(e.clientX - dragStartX) > 20 || Math.abs(e.clientY - dragStartY) > 20) hasDragged = true;
     }
     doDrag(e);
 });
@@ -864,7 +882,7 @@ window.addEventListener('mouseup', endDrag);
 
 window.addEventListener('touchmove', (e) => {
     if (state.isDragging && e.touches[0]) {
-        if (Math.abs(e.touches[0].clientX - dragStartX) > 5 || Math.abs(e.touches[0].clientY - dragStartY) > 5) hasDragged = true;
+        if (Math.abs(e.touches[0].clientX - dragStartX) > 15 || Math.abs(e.touches[0].clientY - dragStartY) > 15) hasDragged = true;
     }
     doDrag(e);
 }, { passive: false });
