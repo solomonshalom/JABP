@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'JesusW-V*'
 
 jobs:
   build:
@@ -42,7 +42,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: 'JABP ${{ github.ref_name }}'
+          releaseName: 'JABP - ${{ github.ref_name }}'
           releaseBody: |
             Spin the disc. Feel the grooves.
 
