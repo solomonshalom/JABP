@@ -800,37 +800,42 @@ let lastClickTime = 0;
 const DOUBLE_TAP_THRESHOLD = 400; // ms
 
 function handleClick(e) {
-    // Ignore if this was a drag (moved more than threshold)
-    if (hasDragged) {
-        hasDragged = false;
-        return;
-    }
-
     const now = Date.now();
     const timeSinceLastClick = now - lastClickTime;
 
+    // Check double-tap FIRST (CD swap should always work, even with micro-movement)
     if (timeSinceLastClick < DOUBLE_TAP_THRESHOLD && timeSinceLastClick > 50) {
         // Double tap detected!
         clearTimeout(clickTimeout);
         lastClickTime = 0;
+        hasDragged = false;
 
         // Swap CD image (always works, even without source)
         haptics.cdSwap();
         state.currentCdImage = (state.currentCdImage + 1) % CD_IMAGES.length;
         if (elements.cdDisc) elements.cdDisc.src = CD_IMAGES[state.currentCdImage];
         console.log('Double tap - CD swap');
-    } else {
-        // First tap - wait to see if second tap comes
-        lastClickTime = now;
-        clearTimeout(clickTimeout);
-        clickTimeout = setTimeout(() => {
-            if (state.hasSource) {
-                togglePlayPause();
-                console.log('Single tap - toggle play/pause');
-            }
-            lastClickTime = 0;
-        }, DOUBLE_TAP_THRESHOLD);
+        return;
     }
+
+    // Always track click time for double-tap detection
+    lastClickTime = now;
+
+    // Only block single-tap play/pause if dragged (not double-tap)
+    if (hasDragged) {
+        hasDragged = false;
+        return;
+    }
+
+    // Single tap - wait to see if second tap comes
+    clearTimeout(clickTimeout);
+    clickTimeout = setTimeout(() => {
+        if (state.hasSource) {
+            togglePlayPause();
+            console.log('Single tap - toggle play/pause');
+        }
+        lastClickTime = 0;
+    }, DOUBLE_TAP_THRESHOLD);
 }
 
 function handleDoubleClick() {
