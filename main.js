@@ -797,6 +797,7 @@ function endDrag() {
 // ============================================
 let clickTimeout = null;
 let lastClickTime = 0;
+let doubleTapHandled = false; // Prevent native dblclick from firing after manual detection
 const DOUBLE_TAP_THRESHOLD = 400; // ms
 
 function handleClick(e) {
@@ -809,12 +810,16 @@ function handleClick(e) {
         clearTimeout(clickTimeout);
         lastClickTime = 0;
         hasDragged = false;
+        doubleTapHandled = true; // Flag to prevent native dblclick from also firing
 
         // Swap CD image (always works, even without source)
         haptics.cdSwap();
         state.currentCdImage = (state.currentCdImage + 1) % CD_IMAGES.length;
         if (elements.cdDisc) elements.cdDisc.src = CD_IMAGES[state.currentCdImage];
         console.log('Double tap - CD swap');
+
+        // Reset flag after a short delay (native dblclick fires immediately after)
+        setTimeout(() => { doubleTapHandled = false; }, 100);
         return;
     }
 
@@ -840,6 +845,12 @@ function handleClick(e) {
 
 function handleDoubleClick() {
     // Backup for devices where native dblclick works
+    // Skip if manual detection already handled this double-tap
+    if (doubleTapHandled) {
+        console.log('Native dblclick skipped - already handled');
+        return;
+    }
+
     clearTimeout(clickTimeout);
     lastClickTime = 0;
 
