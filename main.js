@@ -527,19 +527,44 @@ async function loadDefaultTrack() {
     stopLocalAudio();
 
     showTitle(DEFAULT_TRACK.title);
+    showStatus('Loading...');
+
+    // Wait for audio to be ready before playing
+    const loadPromise = new Promise((resolve, reject) => {
+        const onCanPlay = () => {
+            elements.audio.removeEventListener('canplay', onCanPlay);
+            elements.audio.removeEventListener('error', onError);
+            resolve();
+        };
+        const onError = (e) => {
+            elements.audio.removeEventListener('canplay', onCanPlay);
+            elements.audio.removeEventListener('error', onError);
+            reject(new Error('Failed to load audio'));
+        };
+        elements.audio.addEventListener('canplay', onCanPlay);
+        elements.audio.addEventListener('error', onError);
+    });
+
     elements.audio.src = DEFAULT_TRACK.url;
     elements.audio.load();
 
     initAudioContext();
 
     try {
+        await loadPromise;
         await elements.audio.play();
         haptics.success();
         state.isPlaying = true;
         updatePlayButton(true);
+        showStatus('');
     } catch (e) {
-        console.error('Autoplay blocked:', e);
-        showStatus('Tap play to start');
+        console.error('Audio load/play error:', e);
+        if (e.name === 'NotAllowedError') {
+            showStatus('Tap play to start');
+        } else {
+            showStatus('Could not load audio');
+            haptics.error();
+        }
     }
 
     return true;
@@ -560,6 +585,23 @@ async function loadLocalAudio(file) {
     // Show filename as title (strip extension)
     const title = file.name.replace(/\.[^/.]+$/, '');
     showTitle(title);
+    showStatus('Loading...');
+
+    // Wait for audio to be ready before playing
+    const loadPromise = new Promise((resolve, reject) => {
+        const onCanPlay = () => {
+            elements.audio.removeEventListener('canplay', onCanPlay);
+            elements.audio.removeEventListener('error', onError);
+            resolve();
+        };
+        const onError = (e) => {
+            elements.audio.removeEventListener('canplay', onCanPlay);
+            elements.audio.removeEventListener('error', onError);
+            reject(new Error('Failed to load audio'));
+        };
+        elements.audio.addEventListener('canplay', onCanPlay);
+        elements.audio.addEventListener('error', onError);
+    });
 
     elements.audio.src = URL.createObjectURL(file);
     elements.audio.load();
@@ -567,13 +609,20 @@ async function loadLocalAudio(file) {
     initAudioContext();
 
     try {
+        await loadPromise;
         await elements.audio.play();
         haptics.success();
         state.isPlaying = true;
         updatePlayButton(true);
+        showStatus('');
     } catch (e) {
-        console.error('Autoplay blocked:', e);
-        showStatus('Tap play to start');
+        console.error('Audio load/play error:', e);
+        if (e.name === 'NotAllowedError') {
+            showStatus('Tap play to start');
+        } else {
+            showStatus('Could not load audio');
+            haptics.error();
+        }
     }
 
     return true;
@@ -1028,9 +1077,28 @@ if (elements.audio) {
         }
     });
 
-    elements.audio.addEventListener('error', () => {
+    elements.audio.addEventListener('error', (e) => {
         haptics.error();
-        showStatus('Audio error');
+        const error = elements.audio.error;
+        let message = 'Audio error';
+        if (error) {
+            switch (error.code) {
+                case MediaError.MEDIA_ERR_ABORTED:
+                    message = 'Playback aborted';
+                    break;
+                case MediaError.MEDIA_ERR_NETWORK:
+                    message = 'Network error';
+                    break;
+                case MediaError.MEDIA_ERR_DECODE:
+                    message = 'Audio decode error';
+                    break;
+                case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
+                    message = 'Format not supported';
+                    break;
+            }
+            console.error('Audio error:', error.code, error.message);
+        }
+        showStatus(message);
         state.isPlaying = false;
         updatePlayButton(false);
     });
