@@ -39,7 +39,18 @@ const elements = {
     cdDisc: $('cdDisc'),
     songTitle: $('songTitle'),
     songTime: $('songTime'),
-    ytPlayerContainer: $('ytPlayerContainer')
+    ytPlayerContainer: $('ytPlayerContainer'),
+    // Spotify elements
+    spotifyBtn: $('spotifyBtn'),
+    spotifyOverlay: $('spotifyOverlay'),
+    spotifyInput: $('spotifyInput'),
+    spotifyCancel: $('spotifyCancel'),
+    spotifyLoad: $('spotifyLoad'),
+    spotifyEmbed: $('spotifyEmbed'),
+    // CD cover elements
+    coverBtn: $('coverBtn'),
+    resetCoverBtn: $('resetCoverBtn'),
+    coverInput: $('coverInput')
 };
 
 // ============================================
@@ -52,11 +63,12 @@ const state = {
     lastTime: performance.now(),
     isDragging: false,
     lastAngle: 0,
-    sourceMode: null, // 'local' | 'youtube'
+    sourceMode: null, // 'local' | 'youtube' | 'spotify'
     hasSource: false,
     currentTime: 0,
     duration: 0,
-    currentCdImage: 0
+    currentCdImage: 0,
+    customCover: null // Custom CD cover data URL
 };
 
 // Constants
@@ -467,6 +479,10 @@ async function loadYouTube(url) {
 
     // Stop local audio
     stopLocalAudio();
+    // Stop Spotify
+    if (state.sourceMode === 'spotify' && spotifyController) {
+        stopSpotify();
+    }
 
     state.sourceMode = 'youtube';
     state.hasSource = true;
@@ -502,6 +518,243 @@ async function loadYouTube(url) {
 }
 
 // ============================================
+// Spotify iFrame API Integration
+// ============================================
+let spotifyController = null;
+let spotifyIFrameAPI = null;
+
+// Wait for Spotify iFrame API to be ready
+window.onSpotifyIframeApiReady = (IFrameAPI) => {
+    console.log('Spotify iFrame API ready');
+    spotifyIFrameAPI = IFrameAPI;
+};
+
+function parseSpotifyURL(url) {
+    try {
+        url = (url || '').trim();
+        if (!url) return { error: 'Empty URL' };
+        if (!url.startsWith('http')) url = 'https://' + url;
+
+        const urlObj = new URL(url);
+        const hostname = urlObj.hostname.replace('www.', '');
+
+        if (!hostname.includes('spotify.com')) {
+            return { error: 'Not a Spotify URL' };
+        }
+
+        const path = urlObj.pathname;
+        let type = null;
+        let id = null;
+
+        // Parse /track/ID, /album/ID, /playlist/ID, /episode/ID, /show/ID
+        const match = path.match(/\/(track|album|playlist|episode|show)\/([a-zA-Z0-9]+)/);
+        if (match) {
+            type = match[1];
+            id = match[2];
+        }
+
+        if (!type || !id) {
+            return { error: 'Invalid Spotify link' };
+        }
+
+        return { type, id, uri: `spotify:${type}:${id}` };
+    } catch (e) {
+        return { error: 'Invalid URL' };
+    }
+}
+
+async function fetchSpotifyOEmbed(type, id) {
+    try {
+        const res = await fetch(`https://open.spotify.com/oembed?url=https://open.spotify.com/${type}/${id}`);
+        if (res.ok) {
+            return await res.json();
+        }
+    } catch (e) {
+        console.log('Could not fetch Spotify oEmbed:', e);
+    }
+    return null;
+}
+
+async function loadSpotify(url) {
+    console.log('loadSpotify:', url);
+
+    if (!spotifyIFrameAPI) {
+        showStatus('Spotify loading...');
+        // Wait a bit for API to load
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (!spotifyIFrameAPI) {
+            showStatus('Spotify unavailable');
+            return false;
+        }
+    }
+
+    showStatus('Loading...');
+    showTitle('');
+
+    const { type, id, uri, error } = parseSpotifyURL(url);
+    console.log('Parsed Spotify:', { type, id, uri, error });
+
+    if (error) {
+        showStatus(error);
+        return false;
+    }
+
+    // Stop other sources
+    stopLocalAudio();
+    if (state.sourceMode === 'youtube' && ytPlayer) {
+        try { await ytPlayer.stopVideo(); } catch (e) {}
+    }
+
+    // Destroy existing Spotify controller
+    if (spotifyController) {
+        try { spotifyController.destroy(); } catch (e) {}
+        spotifyController = null;
+    }
+
+    state.sourceMode = 'spotify';
+    state.hasSource = true;
+    state.currentTime = 0;
+    state.duration = 0;
+
+    // Create Spotify embed controller
+    return new Promise((resolve) => {
+        const options = {
+            uri: uri,
+            width: 1,
+            height: 1,
+            theme: 0 // Dark theme
+        };
+
+        spotifyIFrameAPI.createController(elements.spotifyEmbed, options, (controller) => {
+            spotifyController = controller;
+            console.log('Spotify controller created');
+
+            // Listen for playback updates
+            controller.addListener('playback_update', (e) => {
+                if (state.sourceMode !== 'spotify') return;
+
+                state.currentTime = (e.data.position || 0) / 1000;
+                state.duration = (e.data.duration || 0) / 1000;
+                state.isPlaying = !e.data.isPaused;
+                updatePlayButton(state.isPlaying);
+
+                if (state.duration > 0 && !state.isDragging) {
+                    showStatus(`${formatTime(state.currentTime)} / ${formatTime(state.duration)}`);
+                }
+            });
+
+            controller.addListener('ready', () => {
+                console.log('Spotify embed ready');
+                haptics.success();
+            });
+
+            // Fetch title from oEmbed
+            fetchSpotifyOEmbed(type, id).then(oembed => {
+                if (oembed?.title) {
+                    showTitle(oembed.title);
+                } else {
+                    showTitle(`Spotify ${type}`);
+                }
+            });
+
+            state.isPlaying = true;
+            updatePlayButton(true);
+            showStatus('');
+            resolve(true);
+        });
+    });
+}
+
+function stopSpotify() {
+    if (spotifyController) {
+        try {
+            spotifyController.pause();
+        } catch (e) {}
+    }
+}
+
+// ============================================
+// Custom CD Cover
+// ============================================
+const COVER_STORAGE_KEY = 'jabp_custom_cover';
+
+function loadSavedCover() {
+    try {
+        const saved = localStorage.getItem(COVER_STORAGE_KEY);
+        if (saved) {
+            state.customCover = saved;
+            if (elements.cdDisc) {
+                elements.cdDisc.src = saved;
+            }
+            console.log('Loaded custom CD cover from storage');
+        }
+    } catch (e) {
+        console.log('Could not load saved cover:', e);
+    }
+}
+
+function saveCustomCover(dataUrl) {
+    try {
+        localStorage.setItem(COVER_STORAGE_KEY, dataUrl);
+        state.customCover = dataUrl;
+        console.log('Saved custom CD cover to storage');
+    } catch (e) {
+        console.error('Could not save cover:', e);
+        showStatus('Cover too large to save');
+    }
+}
+
+function resetCover() {
+    try {
+        localStorage.removeItem(COVER_STORAGE_KEY);
+        state.customCover = null;
+        state.currentCdImage = 0;
+        if (elements.cdDisc) {
+            elements.cdDisc.src = CD_IMAGES[0];
+        }
+        haptics.success();
+        console.log('Reset CD cover to default');
+    } catch (e) {
+        console.log('Could not reset cover:', e);
+    }
+}
+
+async function handleCoverUpload(file) {
+    if (!file || !file.type.startsWith('image/')) {
+        showStatus('Please select an image');
+        return;
+    }
+
+    // Check file size (max 2MB for localStorage)
+    if (file.size > 2 * 1024 * 1024) {
+        showStatus('Image too large (max 2MB)');
+        haptics.error();
+        return;
+    }
+
+    showStatus('Loading cover...');
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const dataUrl = e.target.result;
+        if (elements.cdDisc) {
+            elements.cdDisc.src = dataUrl;
+        }
+        saveCustomCover(dataUrl);
+        haptics.success();
+        showStatus('');
+    };
+    reader.onerror = () => {
+        showStatus('Failed to load image');
+        haptics.error();
+    };
+    reader.readAsDataURL(file);
+}
+
+// Load saved cover on startup
+loadSavedCover();
+
+// ============================================
 // Local Audio
 // ============================================
 function stopLocalAudio() {
@@ -520,6 +773,10 @@ async function loadDefaultTrack() {
     // Stop YouTube if active
     if (state.sourceMode === 'youtube' && ytPlayer) {
         try { await ytPlayer.stopVideo(); } catch (e) {}
+    }
+    // Stop Spotify if active
+    if (state.sourceMode === 'spotify' && spotifyController) {
+        stopSpotify();
     }
 
     state.sourceMode = 'local';
@@ -576,6 +833,10 @@ async function loadLocalAudio(file) {
     // Stop YouTube
     if (state.sourceMode === 'youtube' && ytPlayer) {
         try { await ytPlayer.stopVideo(); } catch (e) {}
+    }
+    // Stop Spotify
+    if (state.sourceMode === 'spotify' && spotifyController) {
+        stopSpotify();
     }
 
     state.sourceMode = 'local';
@@ -635,6 +896,8 @@ async function play() {
     console.log('play()', state.sourceMode);
     if (state.sourceMode === 'youtube' && ytPlayer) {
         await ytPlayer.playVideo();
+    } else if (state.sourceMode === 'spotify' && spotifyController) {
+        try { spotifyController.resume(); } catch (e) {}
     } else if (state.sourceMode === 'local' && elements.audio) {
         await elements.audio.play().catch(() => showStatus('Tap to play'));
     }
@@ -646,6 +909,8 @@ async function pause() {
     console.log('pause()', state.sourceMode);
     if (state.sourceMode === 'youtube' && ytPlayer) {
         await ytPlayer.pauseVideo();
+    } else if (state.sourceMode === 'spotify' && spotifyController) {
+        try { spotifyController.pause(); } catch (e) {}
     } else if (state.sourceMode === 'local' && elements.audio) {
         elements.audio.pause();
     }
@@ -669,6 +934,8 @@ async function seek(time) {
 
     if (state.sourceMode === 'youtube' && ytPlayer) {
         await ytPlayer.seekTo(time, true);
+    } else if (state.sourceMode === 'spotify' && spotifyController) {
+        try { spotifyController.seek(time); } catch (e) {}
     } else if (state.sourceMode === 'local' && elements.audio) {
         elements.audio.currentTime = time;
     }
@@ -862,10 +1129,16 @@ function handleClick(e) {
         doubleTapHandled = true; // Flag to prevent native dblclick from also firing
 
         // Swap CD image (always works, even without source)
-        haptics.cdSwap();
-        state.currentCdImage = (state.currentCdImage + 1) % CD_IMAGES.length;
-        if (elements.cdDisc) elements.cdDisc.src = CD_IMAGES[state.currentCdImage];
-        console.log('Double tap - CD swap');
+        // Skip if custom cover is set
+        if (!state.customCover) {
+            haptics.cdSwap();
+            state.currentCdImage = (state.currentCdImage + 1) % CD_IMAGES.length;
+            if (elements.cdDisc) elements.cdDisc.src = CD_IMAGES[state.currentCdImage];
+            console.log('Double tap - CD swap');
+        } else {
+            haptics.tap();
+            console.log('Double tap - custom cover active, no swap');
+        }
 
         // Reset flag after a short delay (native dblclick fires immediately after)
         setTimeout(() => { doubleTapHandled = false; }, 100);
@@ -903,10 +1176,16 @@ function handleDoubleClick() {
     clearTimeout(clickTimeout);
     lastClickTime = 0;
 
-    haptics.cdSwap();
-    state.currentCdImage = (state.currentCdImage + 1) % CD_IMAGES.length;
-    if (elements.cdDisc) elements.cdDisc.src = CD_IMAGES[state.currentCdImage];
-    console.log('Native dblclick - CD swap');
+    // Skip if custom cover is set
+    if (!state.customCover) {
+        haptics.cdSwap();
+        state.currentCdImage = (state.currentCdImage + 1) % CD_IMAGES.length;
+        if (elements.cdDisc) elements.cdDisc.src = CD_IMAGES[state.currentCdImage];
+        console.log('Native dblclick - CD swap');
+    } else {
+        haptics.tap();
+        console.log('Native dblclick - custom cover active, no swap');
+    }
 }
 
 // ============================================
@@ -1003,6 +1282,89 @@ if (elements.ytBtn) {
         elements.uploadMenu?.classList.remove('open');
         elements.ytOverlay?.classList.add('open');
         elements.ytInput?.focus();
+    });
+}
+
+// Spotify button
+if (elements.spotifyBtn) {
+    elements.spotifyBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        haptics.tap();
+        console.log('Spotify button clicked');
+        elements.uploadMenu?.classList.remove('open');
+        elements.spotifyOverlay?.classList.add('open');
+        elements.spotifyInput?.focus();
+    });
+}
+
+// Spotify overlay
+if (elements.spotifyCancel) {
+    elements.spotifyCancel.addEventListener('click', () => {
+        haptics.tap();
+        elements.spotifyOverlay?.classList.remove('open');
+        if (elements.spotifyInput) elements.spotifyInput.value = '';
+    });
+}
+
+if (elements.spotifyLoad) {
+    elements.spotifyLoad.addEventListener('click', async () => {
+        haptics.tap();
+        const url = elements.spotifyInput?.value?.trim();
+        if (!url) return;
+        console.log('Loading Spotify:', url);
+        elements.spotifyOverlay?.classList.remove('open');
+        const ok = await loadSpotify(url);
+        if (ok) {
+            if (elements.spotifyInput) elements.spotifyInput.value = '';
+        } else {
+            haptics.error();
+            elements.spotifyOverlay?.classList.add('open');
+        }
+    });
+}
+
+if (elements.spotifyInput) {
+    elements.spotifyInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') elements.spotifyLoad?.click();
+    });
+}
+
+if (elements.spotifyOverlay) {
+    elements.spotifyOverlay.addEventListener('click', (e) => {
+        if (e.target === elements.spotifyOverlay) {
+            elements.spotifyOverlay.classList.remove('open');
+            if (elements.spotifyInput) elements.spotifyInput.value = '';
+        }
+    });
+}
+
+// CD Cover upload
+if (elements.coverBtn) {
+    elements.coverBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        haptics.tap();
+        console.log('Cover button clicked');
+        elements.uploadMenu?.classList.remove('open');
+        elements.coverInput?.click();
+    });
+}
+
+if (elements.resetCoverBtn) {
+    elements.resetCoverBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        haptics.tap();
+        console.log('Reset cover clicked');
+        elements.uploadMenu?.classList.remove('open');
+        resetCover();
+    });
+}
+
+if (elements.coverInput) {
+    elements.coverInput.addEventListener('change', async (e) => {
+        const file = e.target.files?.[0];
+        console.log('Cover file:', file?.name);
+        if (file) await handleCoverUpload(file);
+        elements.coverInput.value = '';
     });
 }
 
@@ -1135,6 +1497,7 @@ document.addEventListener('keydown', (e) => {
             break;
         case 'Escape':
             elements.ytOverlay?.classList.remove('open');
+            elements.spotifyOverlay?.classList.remove('open');
             elements.uploadMenu?.classList.remove('open');
             break;
     }
@@ -1144,6 +1507,7 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('beforeunload', () => {
     stopLocalAudio();
     if (ytPlayer) try { ytPlayer.destroy(); } catch (e) {}
+    if (spotifyController) try { spotifyController.destroy(); } catch (e) {}
 });
 
 console.log('CD Player ready');

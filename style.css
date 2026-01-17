@@ -254,3 +254,69 @@ button:hover {
     pointer-events: none;
     opacity: 0;
 }
+
+/* Menu divider */
+.menu-divider {
+    height: 1px;
+    background: rgba(0,0,0,0.15);
+    margin: 0.25rem 0;
+}
+
+/* Spotify overlay */
+.spotify-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255,255,255,0.3);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+}
+
+.spotify-overlay.open {
+    display: flex;
+}
+
+.spotify-modal {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.spotify-modal input {
+    border: 1px solid black;
+    background: rgba(255,255,255,0.8);
+    padding: 0.75rem 1rem;
+    font-size: 0.875rem;
+    width: 320px;
+    outline: none;
+}
+
+.spotify-modal input::placeholder {
+    color: rgba(0,0,0,0.3);
+}
+
+.spotify-modal-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.spotify-modal button {
+    min-width: 100px;
+}
+
+/* Hidden inputs */
+#coverInput { display: none; }
+
+/* Hidden Spotify embed */
+#spotifyEmbed {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0;
+}

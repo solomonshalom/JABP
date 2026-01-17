@@ -56,6 +56,10 @@
                 <div class="upload-menu" id="uploadMenu">
                     <button id="fileBtn">From Device</button>
                     <button id="ytBtn">YouTube Link</button>
+                    <button id="spotifyBtn">Spotify Link</button>
+                    <div class="menu-divider"></div>
+                    <button id="coverBtn">Custom CD Cover</button>
+                    <button id="resetCoverBtn">Reset CD Cover</button>
                 </div>
                 <button id="uploadBtn">Upload</button>
             </div>
@@ -64,6 +68,7 @@
         <p class="hint">Spin right to seek, left to rewind</p>
 
         <input type="file" id="fileInput" accept="audio/*">
+        <input type="file" id="coverInput" accept="image/*">
     </main>
 
     <div class="yt-overlay" id="ytOverlay">
@@ -78,6 +83,19 @@
 
     <div id="ytPlayerContainer"></div>
 
+    <div class="spotify-overlay" id="spotifyOverlay">
+        <div class="spotify-modal">
+            <input type="text" id="spotifyInput" placeholder="Paste Spotify track, album or playlist link...">
+            <div class="spotify-modal-buttons">
+                <button id="spotifyCancel">Cancel</button>
+                <button id="spotifyLoad">Play</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="spotifyEmbed"></div>
+
+    <script src="https://open.spotify.com/embed/iframe-api/v1" async></script>
     <script type="module" src="main.js"></script>
 </body>
 </html>
