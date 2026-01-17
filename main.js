@@ -599,9 +599,13 @@ async function loadSpotify(url) {
         return false;
     }
 
-    // Stop other sources
+    // Stop other sources - set source mode first to prevent error handler from firing
+    const prevMode = state.sourceMode;
+    state.sourceMode = 'spotify';
+    state.hasSource = true;
+
     stopLocalAudio();
-    if (state.sourceMode === 'youtube' && ytPlayer) {
+    if (prevMode === 'youtube' && ytPlayer) {
         try { await ytPlayer.stopVideo(); } catch (e) {}
     }
 
@@ -610,9 +614,6 @@ async function loadSpotify(url) {
         try { spotifyController.destroy(); } catch (e) {}
         spotifyController = null;
     }
-
-    state.sourceMode = 'spotify';
-    state.hasSource = true;
     state.currentTime = 0;
     state.duration = 0;
 
@@ -1440,6 +1441,10 @@ if (elements.audio) {
     });
 
     elements.audio.addEventListener('error', (e) => {
+        // Ignore errors when not in local mode or when src was intentionally cleared
+        if (state.sourceMode !== 'local' || !elements.audio.src) {
+            return;
+        }
         haptics.error();
         const error = elements.audio.error;
         let message = 'Audio error';
