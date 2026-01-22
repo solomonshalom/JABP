@@ -26,6 +26,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -37,7 +40,7 @@ jobs:
           targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Install dependencies
-        run: npm install
+        run: bun install
 
       - name: Build Tauri
         uses: tauri-apps/tauri-action@v0
