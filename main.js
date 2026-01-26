@@ -1482,4 +1482,35 @@ document.addEventListener('keydown', (e) => {
     }
 });
 
+// ============================================
+// Android Back Button / Gesture
+// ============================================
+(function initBackButton() {
+    // Push an initial history entry so popstate fires on back gesture
+    history.pushState({ overlay: false }, '');
+
+    window.addEventListener('popstate', () => {
+        // Check if any overlay is open and close it
+        const overlays = [
+            elements.ytOverlay,
+            elements.aboutOverlay,
+            elements.settingsOverlay,
+        ];
+        let closed = false;
+        for (const overlay of overlays) {
+            if (overlay?.classList.contains('open')) {
+                overlay.classList.remove('open');
+                closed = true;
+            }
+        }
+        // Close upload menu
+        if (elements.uploadMenu?.classList.contains('open')) {
+            elements.uploadMenu.classList.remove('open');
+            closed = true;
+        }
+        // Re-push state so back gesture keeps working for next overlay
+        history.pushState({ overlay: false }, '');
+    });
+})();
+
 console.log('CD Player ready');

@@ -13,6 +13,10 @@ body {
     position: relative;
     overflow: hidden;
     color: black;
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
 }
 
 .tint-layer {
@@ -136,9 +140,11 @@ button {
     justify-content: center;
 }
 
-button:hover {
-    background-color: black;
-    color: white;
+@media (hover: hover) {
+    button:hover {
+        background-color: black;
+        color: white;
+    }
 }
 
 .icon {
@@ -196,9 +202,11 @@ button:hover {
     border-bottom: none;
 }
 
-.upload-menu button:hover {
-    background-color: black;
-    color: white;
+@media (hover: hover) {
+    .upload-menu button:hover {
+        background-color: black;
+        color: white;
+    }
 }
 
 /* YouTube overlay */
@@ -322,9 +330,11 @@ button:hover {
     transition: all 0.2s;
 }
 
-.about-close:hover {
-    background-color: black;
-    color: white;
+@media (hover: hover) {
+    .about-close:hover {
+        background-color: black;
+        color: white;
+    }
 }
 
 /* Settings overlay */
@@ -446,9 +456,11 @@ button:hover {
     transition: all 0.2s;
 }
 
-.settings-close:hover {
-    background-color: black;
-    color: white;
+@media (hover: hover) {
+    .settings-close:hover {
+        background-color: black;
+        color: white;
+    }
 }
 
 /* Handwriting font classes */
@@ -459,6 +471,33 @@ button:hover {
 .oooh-baby { font-family: "Oooh Baby", cursive; font-weight: 400; font-style: normal; }
 .reenie-beanie { font-family: "Reenie Beanie", cursive; font-weight: 400; font-style: normal; }
 .cedarville-cursive { font-family: "Cedarville Cursive", cursive; font-weight: 400; font-style: normal; }
+
+/* Small phone adjustments */
+@media (max-width: 420px) {
+    .container {
+        gap: 1.25rem;
+        padding: 0.5rem;
+    }
+
+    button {
+        padding: 0.6rem 1.5rem;
+        font-size: 0.75rem;
+        min-width: 120px;
+    }
+
+    .about-content {
+        padding: 0 1.25rem;
+    }
+
+    .about-text {
+        font-size: 1.4rem;
+        line-height: 1.3rem;
+    }
+
+    .yt-modal input {
+        width: 260px;
+    }
+}
 
 /* Hidden inputs */
 #coverInput { display: none; }
