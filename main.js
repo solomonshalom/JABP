@@ -41,9 +41,15 @@ const elements = {
     songTime: $('songTime'),
     ytPlayerContainer: $('ytPlayerContainer'),
     // CD cover elements
-    coverBtn: $('coverBtn'),
-    resetCoverBtn: $('resetCoverBtn'),
     coverInput: $('coverInput'),
+    // Settings elements
+    settingsBtn: $('settingsBtn'),
+    settingsOverlay: $('settingsOverlay'),
+    settingsClose: $('settingsClose'),
+    volumeSlider: $('volumeSlider'),
+    volumeValue: $('volumeValue'),
+    settingsCoverBtn: $('settingsCoverBtn'),
+    settingsResetCoverBtn: $('settingsResetCoverBtn'),
     // About elements
     aboutBtn: $('aboutBtn'),
     aboutOverlay: $('aboutOverlay'),
@@ -126,6 +132,8 @@ function initYouTubePlayer() {
                 case YT_STATES.PLAYING:
                     state.isPlaying = true;
                     updatePlayButton(true);
+                    // Apply saved volume to YouTube player
+                    try { ytPlayer.setVolume(loadSavedVolume()); } catch (e) {}
                     // Don't clear status while dragging (scrubbing shows time)
                     if (!state.isDragging) showStatus('');
                     // Fetch title for current video (works for playlists too)
@@ -594,6 +602,52 @@ async function handleCoverUpload(file) {
 
 // Load saved cover on startup
 loadSavedCover();
+
+// ============================================
+// Volume Control
+// ============================================
+const VOLUME_STORAGE_KEY = 'jabp_volume';
+
+function loadSavedVolume() {
+    try {
+        const saved = localStorage.getItem(VOLUME_STORAGE_KEY);
+        if (saved !== null) {
+            const vol = parseInt(saved, 10);
+            if (!isNaN(vol) && vol >= 0 && vol <= 100) {
+                return vol;
+            }
+        }
+    } catch (e) {
+        console.log('Could not load saved volume:', e);
+    }
+    return 100;
+}
+
+function applyVolume(vol) {
+    if (elements.audio) {
+        elements.audio.volume = vol / 100;
+    }
+    if (ytPlayer) {
+        try { ytPlayer.setVolume(vol); } catch (e) {}
+    }
+    if (elements.volumeSlider) {
+        elements.volumeSlider.value = vol;
+    }
+    if (elements.volumeValue) {
+        elements.volumeValue.textContent = vol + '%';
+    }
+}
+
+function saveVolume(vol) {
+    try {
+        localStorage.setItem(VOLUME_STORAGE_KEY, vol.toString());
+    } catch (e) {
+        console.log('Could not save volume:', e);
+    }
+}
+
+// Initialize volume
+applyVolume(loadSavedVolume());
 
 // ============================================
 // Local Audio
@@ -1132,23 +1186,51 @@ if (elements.ytBtn) {
     });
 }
 
-// CD Cover upload
-if (elements.coverBtn) {
-    elements.coverBtn.addEventListener('click', (e) => {
+// Settings overlay
+if (elements.settingsBtn) {
+    elements.settingsBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         haptics.tap();
-        console.log('Cover button clicked');
         elements.uploadMenu?.classList.remove('open');
+        elements.settingsOverlay?.classList.add('open');
+    });
+}
+
+if (elements.settingsClose) {
+    elements.settingsClose.addEventListener('click', () => {
+        haptics.tap();
+        elements.settingsOverlay?.classList.remove('open');
+    });
+}
+
+if (elements.settingsOverlay) {
+    elements.settingsOverlay.addEventListener('click', (e) => {
+        if (e.target === elements.settingsOverlay) {
+            elements.settingsOverlay.classList.remove('open');
+        }
+    });
+}
+
+// Volume slider
+if (elements.volumeSlider) {
+    elements.volumeSlider.addEventListener('input', () => {
+        const vol = parseInt(elements.volumeSlider.value, 10);
+        applyVolume(vol);
+        saveVolume(vol);
+    });
+}
+
+// CD Cover upload (from settings)
+if (elements.settingsCoverBtn) {
+    elements.settingsCoverBtn.addEventListener('click', () => {
+        haptics.tap();
         elements.coverInput?.click();
     });
 }
 
-if (elements.resetCoverBtn) {
-    elements.resetCoverBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
+if (elements.settingsResetCoverBtn) {
+    elements.settingsResetCoverBtn.addEventListener('click', () => {
         haptics.tap();
-        console.log('Reset cover clicked');
-        elements.uploadMenu?.classList.remove('open');
         resetCover();
     });
 }
@@ -1296,6 +1378,7 @@ document.addEventListener('keydown', (e) => {
         case 'Escape':
             elements.ytOverlay?.classList.remove('open');
             elements.uploadMenu?.classList.remove('open');
+            elements.settingsOverlay?.classList.remove('open');
             break;
     }
 });
