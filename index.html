@@ -57,9 +57,7 @@
                     <button id="fileBtn">From Device</button>
                     <button id="ytBtn">YouTube Link</button>
                     <div class="menu-divider"></div>
-                    <button id="coverBtn">Custom CD Cover</button>
-                    <button id="resetCoverBtn">Reset CD Cover</button>
-                    <div class="menu-divider"></div>
+                    <button id="settingsBtn">Settings</button>
                     <button id="aboutBtn">About</button>
                 </div>
                 <button id="uploadBtn">Upload</button>
@@ -86,6 +84,30 @@
         <div class="about-content">
             <p class="about-text"></p>
             <button class="about-close" id="aboutClose">Close</button>
+        </div>
+    </div>
+
+    <div class="settings-overlay" id="settingsOverlay">
+        <div class="settings-content">
+            <h2 class="settings-title">Settings</h2>
+
+            <div class="settings-section">
+                <label class="settings-label">Volume</label>
+                <div class="settings-volume">
+                    <input type="range" id="volumeSlider" min="0" max="100" value="100" class="volume-slider">
+                    <span class="volume-value" id="volumeValue">100%</span>
+                </div>
+            </div>
+
+            <div class="settings-section">
+                <label class="settings-label">CD Cover</label>
+                <div class="settings-cover-buttons">
+                    <button id="settingsCoverBtn">Upload Cover</button>
+                    <button id="settingsResetCoverBtn">Reset Cover</button>
+                </div>
+            </div>
+
+            <button class="settings-close" id="settingsClose">Close</button>
         </div>
     </div>
 
