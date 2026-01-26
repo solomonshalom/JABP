@@ -133,7 +133,8 @@ function initYouTubePlayer() {
                     state.isPlaying = true;
                     updatePlayButton(true);
                     // Apply saved volume to YouTube player
-                    try { ytPlayer.setVolume(loadSavedVolume()); } catch (e) {}
+                    ytPlayer.unMute().catch(() => {});
+                    ytPlayer.setVolume(loadSavedVolume()).catch(() => {});
                     // Don't clear status while dragging (scrubbing shows time)
                     if (!state.isDragging) showStatus('');
                     // Fetch title for current video (works for playlists too)
@@ -495,6 +496,7 @@ async function loadYouTube(url) {
         if (videoId) {
             console.log('Loading video:', videoId);
             await ytPlayer.loadVideoById(videoId);
+            applyVolume(loadSavedVolume());
             haptics.success();
             // Fetch title in background
             fetchYouTubeTitle(videoId).then(title => {
@@ -504,6 +506,7 @@ async function loadYouTube(url) {
         } else if (listId) {
             console.log('Loading playlist:', listId);
             await ytPlayer.loadPlaylist({ list: listId, listType: 'playlist' });
+            applyVolume(loadSavedVolume());
             haptics.success();
             showTitle('Playlist');
             return true;
@@ -628,7 +631,8 @@ function applyVolume(vol) {
         elements.audio.volume = vol / 100;
     }
     if (ytPlayer) {
-        try { ytPlayer.setVolume(vol); } catch (e) {}
+        ytPlayer.unMute().catch(() => {});
+        ytPlayer.setVolume(vol).catch(() => {});
     }
     if (elements.volumeSlider) {
         elements.volumeSlider.value = vol;
@@ -899,7 +903,7 @@ function animate(time) {
     }
 
     state.currentRotation += state.angularVelocity * dt;
-    if (elements.cdDisc) {
+    if (elements.cdDisc && !elements.settingsOverlay?.classList.contains('open')) {
         elements.cdDisc.style.transform = `rotate(${state.currentRotation}deg)`;
     }
 
