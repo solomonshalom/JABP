@@ -43,7 +43,11 @@ const elements = {
     // CD cover elements
     coverBtn: $('coverBtn'),
     resetCoverBtn: $('resetCoverBtn'),
-    coverInput: $('coverInput')
+    coverInput: $('coverInput'),
+    // About elements
+    aboutBtn: $('aboutBtn'),
+    aboutOverlay: $('aboutOverlay'),
+    aboutClose: $('aboutClose')
 };
 
 // ============================================
@@ -1300,6 +1304,95 @@ document.addEventListener('keydown', (e) => {
 window.addEventListener('beforeunload', () => {
     stopLocalAudio();
     if (ytPlayer) try { ytPlayer.destroy(); } catch (e) {}
+});
+
+// ============================================
+// About Page (Bad Handwriting)
+// ============================================
+const aboutText = 'Music deserves more than a progress bar. JABP is just a beautiful player, nothing more, nothing less. A spinning disc, a song, and the simple joy of pressing play. Drag the CD to scrub through time, double tap to swap the artwork, or drop in a file and let it breathe. No playlists, no algorithms, no clutter. Just sound, warmth, and a quiet space to listen. Sometimes the most beautiful things are the ones that do the least.';
+
+function seededRandom(seed) {
+    let x = Math.sin(seed++) * 10000;
+    return x - Math.floor(x);
+}
+
+function wrapLetters(str, element, seed = 1) {
+    const fonts = [
+        'caveat',
+        'cedarville-cursive',
+        'indie-flower',
+        'nothing-you-could-do',
+        'oooh-baby',
+        'reenie-beanie',
+        'shadows-into-light'
+    ];
+
+    const blacklist = {
+        l: ['cedarville-cursive', 'oooh-baby', 'nothing-you-could-do']
+    };
+
+    const lastUsed = {};
+    element.innerHTML = '';
+    let currentSeed = seed;
+
+    for (const char of str) {
+        const lowerChar = char.toLowerCase();
+        let availableFonts = fonts;
+
+        if (blacklist[lowerChar]) {
+            availableFonts = fonts.filter(f => !blacklist[lowerChar].includes(f));
+        }
+
+        if (lastUsed[lowerChar]) {
+            availableFonts = availableFonts.filter(f => f !== lastUsed[lowerChar]);
+        }
+
+        const fontIndex = Math.floor(seededRandom(currentSeed) * availableFonts.length);
+        const font = availableFonts[fontIndex] || fonts[0];
+        lastUsed[lowerChar] = font;
+
+        const span = document.createElement('span');
+        span.className = font;
+        span.textContent = char;
+        element.appendChild(span);
+
+        currentSeed++;
+    }
+}
+
+if (elements.aboutBtn) {
+    elements.aboutBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        haptics.tap();
+        elements.uploadMenu?.classList.remove('open');
+        elements.aboutOverlay?.classList.add('open');
+        const aboutP = document.querySelector('.about-text');
+        if (aboutP) {
+            wrapLetters(aboutText, aboutP, 12);
+        }
+    });
+}
+
+if (elements.aboutClose) {
+    elements.aboutClose.addEventListener('click', () => {
+        haptics.tap();
+        elements.aboutOverlay?.classList.remove('open');
+    });
+}
+
+if (elements.aboutOverlay) {
+    elements.aboutOverlay.addEventListener('click', (e) => {
+        if (e.target === elements.aboutOverlay) {
+            elements.aboutOverlay.classList.remove('open');
+        }
+    });
+}
+
+// Close about with Escape (extend existing handler)
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        elements.aboutOverlay?.classList.remove('open');
+    }
 });
 
 console.log('CD Player ready');
