@@ -903,7 +903,11 @@ function animate(time) {
     }
 
     state.currentRotation += state.angularVelocity * dt;
-    if (elements.cdDisc && !elements.settingsOverlay?.classList.contains('open')) {
+    const anyOverlayOpen =
+        elements.settingsOverlay?.classList.contains('open') ||
+        elements.aboutOverlay?.classList.contains('open') ||
+        elements.ytOverlay?.classList.contains('open');
+    if (elements.cdDisc && !anyOverlayOpen) {
         elements.cdDisc.style.transform = `rotate(${state.currentRotation}deg)`;
     }
 
