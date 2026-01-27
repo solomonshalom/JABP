@@ -113,10 +113,34 @@ jobs:
         env:
           NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
-      - name: Rename APK
+      - name: Sign APK
         run: |
+          # Generate a signing keystore
+          keytool -genkeypair -v \
+            -keystore release.jks \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -alias jabp \
+            -storepass jabprelease \
+            -keypass jabprelease \
+            -dname "CN=JABP, O=JABP, L=Unknown, ST=Unknown, C=US"
+
+          # Find the unsigned APK
           APK=$(find src-tauri/gen/android/app/build/outputs/apk -name '*.apk' | head -1)
-          cp "$APK" JABP-android.apk
+
+          # Align the APK
+          "${ANDROID_HOME}/build-tools/$(ls "${ANDROID_HOME}/build-tools/" | sort -V | tail -1)/zipalign" -v -p 4 "$APK" aligned.apk
+
+          # Sign with apksigner
+          "${ANDROID_HOME}/build-tools/$(ls "${ANDROID_HOME}/build-tools/" | sort -V | tail -1)/apksigner" sign \
+            --ks release.jks \
+            --ks-key-alias jabp \
+            --ks-pass pass:jabprelease \
+            --key-pass pass:jabprelease \
+            --out JABP-android.apk \
+            aligned.apk
+
+          # Verify
+          "${ANDROID_HOME}/build-tools/$(ls "${ANDROID_HOME}/build-tools/" | sort -V | tail -1)/apksigner" verify JABP-android.apk
 
       - name: Upload APK to release
         run: gh release upload "${{ github.ref_name }}" JABP-android.apk --clobber
