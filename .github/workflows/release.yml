@@ -108,6 +108,20 @@ jobs:
           # Add INTERNET and VIBRATE permissions before the <application tag
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.VIBRATE" />' "$MANIFEST"
 
+      - name: Copy custom app icons
+        run: |
+          RES_DIR="src-tauri/gen/android/app/src/main/res"
+          ICONS_DIR="src-tauri/icons/android"
+          # Copy mipmap directories (launcher icons for all densities)
+          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            cp -f "$ICONS_DIR/mipmap-$density/"* "$RES_DIR/mipmap-$density/"
+          done
+          # Copy adaptive icon XML (Android 8.0+)
+          mkdir -p "$RES_DIR/mipmap-anydpi-v26"
+          cp -f "$ICONS_DIR/mipmap-anydpi-v26/"* "$RES_DIR/mipmap-anydpi-v26/"
+          # Copy background color value
+          cp -f "$ICONS_DIR/values/ic_launcher_background.xml" "$RES_DIR/values/"
+
       - name: Build Android
         run: bun run tauri android build
         env:
