@@ -109,7 +109,7 @@ jobs:
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.VIBRATE" />' "$MANIFEST"
 
       - name: Build Android APK
-        run: bun tauri android build --apk
+        run: bun tauri android build --apk true
         env:
           NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.12077973
 
