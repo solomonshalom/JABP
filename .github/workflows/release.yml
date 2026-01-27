@@ -84,8 +84,12 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
-      - name: Install Android NDK
-        run: sdkmanager "ndk;27.0.12077973"
+      - name: Setup Android NDK
+        uses: nttld/setup-ndk@v1
+        id: setup-ndk
+        with:
+          ndk-version: r27b
+          link-to-sdk: true
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -95,28 +99,25 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Install Tauri CLI
-        run: bun add -g @tauri-apps/cli
-
       - name: Initialize Android project
-        run: bun tauri android init
+        run: bun run tauri android init
 
       - name: Add Android permissions
         run: |
           MANIFEST="src-tauri/gen/android/app/src/main/AndroidManifest.xml"
-          sed -i 's|<manifest|<manifest xmlns:android="http://schemas.android.com/apk/res/android"|' "$MANIFEST" 2>/dev/null || true
-          # Add permissions before the <application tag
+          # Add INTERNET and VIBRATE permissions before the <application tag
           sed -i '/<application/i \    <uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.VIBRATE" />' "$MANIFEST"
 
-      - name: Build Android APK
-        run: bun tauri android build --apk true
+      - name: Build Android
+        run: bun run tauri android build
         env:
-          NDK_HOME: ${{ env.ANDROID_HOME }}/ndk/27.0.12077973
+          NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
 
       - name: Upload APK to release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
-          files: src-tauri/gen/android/app/build/outputs/apk/universal/release/app-universal-release-unsigned.apk
+          files: |
+            src-tauri/gen/android/app/build/outputs/apk/**/*.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
